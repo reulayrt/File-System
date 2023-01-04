@@ -28,7 +28,7 @@ int fs_truncate(int fildes, off_t length);
 
 #define MAX_SIZE 1024*1024
 
-struct supaBlock {  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ might need to use int? $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+struct supaBlock {
     uint16_t used_block_bitmap_count;
     uint16_t used_block_bitmap_offset;
     uint16_t fat_blocks;  //Length of FAT in blocks
@@ -37,7 +37,7 @@ struct supaBlock {  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     uint16_t dir_index;  // First block of directory
 };
 
-struct FAT {  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ might need to use int? $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+struct FAT {
     uint16_t file_type;
     uint16_t dir_offset;
     uint16_t single_out_offset[512];
