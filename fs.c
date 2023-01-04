@@ -1,3 +1,5 @@
+// Copyright 12/12/2022, Ayrton Reulet - reulayrt@bu.edu
+
 #include "disk.h"
 /* 
     - 8,192 Disk Blocks
