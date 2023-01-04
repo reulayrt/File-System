@@ -1,0 +1,166 @@
+### Description
+
+Implementing a simple file system on top of a virtual disk. The library offers a set of API file system calls
+(such as open, read, write, ...) to applications. Using the FAT style data storage this library is able to read
+and write all data and meta-information in blocks to/from the disk with 'persistence'.
+
+### Overview
+
+The management of the file system uses multiple persistent data structures on disk. These data structures are loaded
+when the disk is mounted to access the files. The virtual disk will consist of 8,192 blocks, and each block holds 4KB.
+You can create an empty disk, open and close a disk, and read and write entire blocks (by providing a block number in
+the range between 0 and 8,191 inclusive).
+
+To start, a superblock was created positioned at the start of the FAT and stores the starting block, length of FAT, length
+of directory segments, and the start of the data segment. The superblock is used to index and retrieve the FAT and driectory
+upon mounting.
+
+FAT (file allocation table) is an array of integers with length being the number of blocks on disk (8,192 block length for my
+implementation). Entries in the FAT can be 1 of 3 things:
+    1.) The next entry to be referred to
+    2.) FREE (block is not currently in use)
+    3.) EOF (end of file)
+By using these 3 options we are able to allocated space with minimal fragmentation (wasted space between blocks).
+
+The directory is an array of structs that defines the files currently stored. Every directory entry will contain the file
+size, the file name, the first block storing the file in the FAT, and the number of referrences to that file.
+
+When a disk is mounted, a temporary array of file descriptors is created to allow quick access to open files for reading
+and writing. Each file descriptor includes information about the location of the original file and a "pointer" indicating
+the position of the file that was last accessed. The index of a file descriptor in the array serves as a unique identifier
+for accessing and modifying the file.
+
+
+### API Calls
+
+int make_fs():
+
+This function creates a fresh (and empty) file system on the virtual disk with name disk_name.
+As part of this function, you should first invoke make_disk(disk_name) to create a new disk.
+Then, open this disk and write/initialize the necessary meta-information for your file system so
+that it can be later used (mounted). The function returns 0 on success, and -1 if the disk
+disk_name could not be created, opened, or properly initialized.
+
+
+int mount():
+
+This function mounts a file system that is stored on a virtual disk with name disk_name. With
+the mount operation, a file system becomes "ready for use." You need to open the disk and
+then load the meta-information that is necessary to handle the file system operations that are
+discussed below. The function returns 0 on success, and -1 when the disk disk_name could not
+be opened or when the disk does not contain a valid file system (that you previously created
+with make_fs).
+
+
+int unmount_fs():
+
+This function unmounts your file system from a virtual disk with name disk_name. As part of
+this operation, you need to write back all meta-information so that the disk persistently reflects
+all changes that were made to the file system (such as new files that are created, data that is
+written, ...). You should also close the disk. The function returns 0 on success, and -1 when the
+disk disk_name could not be closed or when data could not be written to the disk (this should
+not happen).
+
+
+int fs_open():
+
+The file specified by name is opened for reading and writing, and the file descriptor
+corresponding to this file is returned to the calling function. If successful, fs_open returns a
+non-negative integer, which is a file descriptor that can be used to subsequently access this
+file. Note that the same file (file with the same name) can be opened multiple times. When this
+happens, your file system is supposed to provide multiple, independent file descriptors. Your
+library must support a maximum of 32 file descriptors that can be open simultaneously.
+fs_open returns -1 on failure. It is a failure when the file with name cannot be found (i.e., it
+has not been created previously or is already deleted). It is also a failure when there are
+already 32 file descriptors active. When a file is opened, the file offset (seek pointer) is set to 0
+(the beginning of the file).
+
+
+int fs_create():
+
+This function creates a new file with name name in the root directory of your file system. The
+file is initially empty. The maximum length for a file name is 15 characters. Also, there can be at
+most 64 files in the directory. Upon successful completion, a value of 0 is returned. fs_create
+returns -1 on failure. It is a failure when the file with name already exists, when the file name is
+too long (it exceeds 15 characters), or when there are already 64 files present in the root
+directory. Note that to access a file that is created, it has to be subsequently opened.
+
+
+int fs_close():
+
+The file descriptor fildes is closed. A closed file descriptor can no longer be used to access the
+corresponding file. Upon successful completion, a value of 0 is returned. In case the file
+descriptor fildes does not exist or is not open, the function returns -1.
+
+
+int fs_delete():
+
+This function deletes the file with name name from the root directory of your file system and
+frees all data blocks and meta-information that correspond to that file. The file that is being
+deleted must not be open. That is, there cannot be any open file descriptor that refers to the file
+name. When the file is open at the time that fs_delete is called, the call fails and the file is not
+deleted. Upon successful completion, a value of 0 is returned. fs_delete returns -1 on failure. It
+is a failure when the file with name does not exist. It is also a failure when the file is currently
+open (i.e., there exists at least one open file descriptor that is associated with this file).
+
+
+int fs_read():
+
+This function attempts to read nbyte bytes of data from the file referenced by the descriptor
+fildes into the buffer pointed to by buf. The function assumes that the buffer buf is large enough
+to hold at least nbyte bytes. When the function attempts to read past the end of the file, it reads
+all bytes until the end of the file. Upon successful completion, the number of bytes that were
+actually read is returned. This number could be smaller than nbyte when attempting to read
+past the end of the file (when trying to read while the file pointer is at the end of the file, the
+function returns zero). In case of failure, the function returns -1. It is a failure when the file
+descriptor fildes is not valid. The read function implicitly increments the file pointer by the
+number of bytes that were actually read.
+
+
+int fs_write():
+
+This function attempts to write nbyte bytes of data to the file referenced by the descriptor fildes
+from the buffer pointed to by buf. The function assumes that the buffer buf holds at least nbyte
+bytes. When the function attempts to write past the end of the file, the file is automatically
+extended to hold the additional bytes. It is possible that the disk runs out of space while
+performing a write operation. In this case, the function attempts to write as many bytes as
+possible (i.e., to fill up the entire space that is left). The maximum file size is 16M (which is,
+4,096 blocks, each 4K). Upon successful completion, the number of bytes that were actually
+written is returned. This number could be smaller than nbyte when the disk runs out of space
+(when writing to a full disk, the function returns zero). In case of failure, the function returns -1.
+It is a failure when the file descriptor fildes is not valid. The write function implicitly increments
+the file pointer by the number of bytes that were actually written.
+
+
+int fs_get_filesize():
+
+This function returns the current size of the file referenced by the file descriptor fildes. In case
+fildes is invalid, the function returns -1.
+
+
+int fs_listfiles():
+
+This function creates and populates an array of all filenames currently known to the file system.
+To terminate the array, your implementation should add a NULL pointer after the last element in
+the array. On success the function returns 0, in the case of an error the function returns -1.
+
+
+int fs_lseek():
+
+This function sets the file pointer (the offset used for read and write operations) associated with
+the file descriptor fildes to the argument offset. It is an error to set the file pointer beyond the
+end of the file. To append to a file, one can set the file pointer to the end of a file, for example,
+by calling fs_lseek(fd, fs_get_filesize(fd));. Upon successful completion, a value
+of 0 is returned. fs_lseek returns -1 on failure. It is a failure when the file descriptor fildes is
+invalid, when the requested offset is larger than the file size, or when offset is less than zero.
+
+
+int fs_truncate():
+
+This function causes the file referenced by fildes to be truncated to length bytes in size. If the
+file was previously larger than this new size, the extra data is lost and the corresponding data
+blocks on disk (if any) must be freed. It is not possible to extend a file using fs_truncate.
+When the file pointer is larger than the new length, then it is also set to length (the end of the
+file). Upon successful completion, a value of 0 is returned. fs_lseek returns -1 on failure. It is a
+failure when the file descriptor fildes is invalid or the requested length is larger than the file
+size.
